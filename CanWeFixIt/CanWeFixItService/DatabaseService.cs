@@ -23,14 +23,24 @@ namespace CanWeFixItService
             _connection.Open();
         }
         
-        public IEnumerable<Instrument> Instruments()
+        public async Task<IEnumerable<Instrument>> Instruments()
         {
-            return _connection.QueryAsync<Instrument>("SQL GOES HERE");
+            return await _connection.QueryAsync<Instrument>("SELECT * from Instrument WHERE Active = 1");
         }
 
-        public async Task<IEnumerable<MarketData>> MarketData()
+        public async Task<IEnumerable<MarketDataDto>> MarketData()
         {
-            return await _connection.QueryAsync<MarketData>("SELECT Id, DataValue FROM MarketData WHERE Active = 0");
+            return await _connection.QueryAsync<MarketDataDto>(
+                 "SELECT M.Id, M.DataValue, I.Id AS InstrumentId, M.Active " +
+                " FROM MarketData M" +
+                " JOIN Instrument I ON I.Sedol =M.Sedol" +
+                " WHERE M.Active = 1 AND IFNULL(M.Sedol,'')!=''");
+        }
+
+        public async Task<IEnumerable<MarketValuation>> MarketValuation()
+        {
+            return await _connection.QueryAsync<MarketValuation>("SELECT 'DataValueTotal' AS Name, SUM(DataValue) AS Total" +
+                " FROM MarketData WHERE ACTIVE = 1");
         }
 
         /// <summary>
@@ -78,5 +88,22 @@ namespace CanWeFixItService
 
             _connection.Execute(createMarketData);
         }
+
+        Task<IEnumerable<Instrument>> IDatabaseService.Instruments()
+        {
+            return Instruments();
+        }
+
+        Task<IEnumerable<MarketDataDto>> IDatabaseService.MarketData()
+        {
+            return MarketData();
+        }
+
+        Task<IEnumerable<MarketValuation>> IDatabaseService.MarketValuation()
+        {
+            return MarketValuation();
+        }
+
+      
     }
 }
